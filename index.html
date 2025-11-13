@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Freunde & Feinde – Sortierspiel (Bild only)</title>
+  <title>Freunde & Feinde – Sortierspiel</title>
   <style>
     * {
       box-sizing: border-box;
@@ -33,19 +33,48 @@
       position: relative;
       width: 100%;
       height: 100%;
-      background-image: url("https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png");
-      background-size: cover;
-      background-position: center;
+      background: #ffffff;
       touch-action: none;
+    }
+
+    /* Forest in the middle */
+    .forest-frame {
+      position: absolute;
+      top: 10%;
+      bottom: 10%;
+      left: 20%;
+      right: 20%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .forest-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 16px;
+      display: block;
+    }
+
+    /* Your red-border SVG overlay (on top of the forest) */
+    .border-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
     }
 
     /* Cards = animals */
     .card {
       position: absolute;
-      width: 90px;
+      width: 90px;   /* 150% of earlier 60px */
       height: 90px;
-      border-radius: 14px;
-      background: #ffffff;
+      border-radius: 16px;
+      background: transparent; /* keep PNG fully transparent */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -68,30 +97,22 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
     }
 
-    /* Slalom divider (visual only) */
-    .divider {
+    /* Big answer badge in the middle */
+    .feedback-overlay {
       position: absolute;
-      inset: 8% 49.4% 10% 49.4%;
-      pointer-events: none;
-      filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none; /* click-through except on img */
     }
 
-    .divider path {
-      fill: none;
-      stroke: rgba(255, 255, 255, 0.9);
-      stroke-width: 10;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    /* Feedback icons (falsch / feinde / freunde) */
-    .feedback-icon {
-      position: absolute;
-      width: 100px;
+    .feedback-overlay img {
+      width: 60%;
+      max-width: 450px;
       height: auto;
-      transform: translate(-50%, -50%);
-      cursor: pointer;
       pointer-events: auto;
+      cursor: pointer;
       user-select: none;
     }
   </style>
@@ -99,16 +120,23 @@
 <body>
   <div class="game-shell">
     <div class="game-area" id="game-area">
-      <!-- Visual slalom divider -->
-      <svg class="divider" viewBox="0 0 100 300" preserveAspectRatio="xMidYMid slice">
-        <path d="
-          M 50 0
-          C 40 40, 60 80, 48 120
-          C 36 160, 64 200, 52 240
-          C 40 280, 60 320, 50 360
-        " />
-      </svg>
-      <!-- Cards + feedback icons are injected by JS -->
+      <div class="forest-frame" id="forest-frame">
+        <!-- Forest scene in the middle -->
+        <img
+          class="forest-img"
+          src="https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png"
+          alt=""
+        />
+        <!-- Red border SVG overlay; put your SVG file next to this HTML and update the src if needed -->
+        <img class="border-svg" src="3.svg" alt="" />
+      </div>
+
+      <!-- Big feedback badge centre-screen -->
+      <div class="feedback-overlay" id="feedback-overlay">
+        <img id="feedback-img" alt="" />
+      </div>
+
+      <!-- Cards & logic injected via JS -->
     </div>
   </div>
 
@@ -118,219 +146,5 @@
     // Card data: 1–8 = Freunde, 9–15 = Feinde
     const cardsData = [
       { id: 1, type: "freund", src: "https://i.postimg.cc/LY4JvcjD/1.png" },
-      { id: 2, type: "freund", src: "https://i.postimg.cc/vg84XJ5N/2.png" },
-      { id: 3, type: "freund", src: "https://i.postimg.cc/DJfS59qK/3.png" },
-      { id: 4, type: "freund", src: "https://i.postimg.cc/Q9NFS2ps/4.png" },
-      { id: 5, type: "freund", src: "https://i.postimg.cc/YG2v8517/5.png" },
-      { id: 6, type: "freund", src: "https://i.postimg.cc/mzZPVvQL/6.png" },
-      { id: 7, type: "freund", src: "https://i.postimg.cc/cg1vTpQH/7.png" },
-      { id: 8, type: "freund", src: "https://i.postimg.cc/dkWLf5BF/8.png" },
-
-      { id: 9, type: "feind", src: "https://i.postimg.cc/R6PNYgR4/9.png" },
-      { id: 10, type: "feind", src: "https://i.postimg.cc/TLkpst9Y/10.png" },
-      { id: 11, type: "feind", src: "https://i.postimg.cc/gXMn7gDz/11.png" },
-      { id: 12, type: "feind", src: "https://i.postimg.cc/XG2pPs8v/12.png" },
-      { id: 13, type: "feind", src: "https://i.postimg.cc/ZBfCQwcR/13.png" },
-      { id: 14, type: "feind", src: "https://i.postimg.cc/dkWLf5BL/14.png" },
-      { id: 15, type: "feind", src: "https://i.postimg.cc/JDTGFpqy/15.png" }
-    ];
-
-    const gameArea = document.getElementById("game-area");
-
-    const FEEDBACK_IMAGES = {
-      falsch: "https://i.postimg.cc/zLsKJzHC/falsch.png",
-      feind: "https://i.postimg.cc/p9wz2W5Y/feinde.png",
-      freund: "https://i.postimg.cc/B8rHqSP5/freunde.png"
-    };
-
-    // Map cardId -> feedback DOM element
-    const feedbackMap = new Map();
-
-    let currentDrag = null;
-
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
-
-    function createCard(cardData, areaRect) {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.dataset.id = cardData.id;
-      card.dataset.type = cardData.type;
-
-      const img = document.createElement("img");
-      img.src = cardData.src;
-      img.alt = "";
-      card.appendChild(img);
-
-      // Initial random placement around the edges
-      const padding = 10;
-      const sideOptions = ["top", "bottom", "left", "right"];
-      const side = sideOptions[Math.floor(Math.random() * sideOptions.length)];
-
-      let left = padding;
-      let top = padding;
-
-      if (side === "top") {
-        top = padding;
-        left =
-          padding +
-          Math.random() * (areaRect.width - CARD_SIZE - padding * 2);
-      } else if (side === "bottom") {
-        top = areaRect.height - CARD_SIZE - padding;
-        left =
-          padding +
-          Math.random() * (areaRect.width - CARD_SIZE - padding * 2);
-      } else if (side === "left") {
-        left = padding;
-        top =
-          padding +
-          Math.random() * (areaRect.height - CARD_SIZE - padding * 2);
-      } else if (side === "right") {
-        left = areaRect.width - CARD_SIZE - padding;
-        top =
-          padding +
-          Math.random() * (areaRect.height - CARD_SIZE - padding * 2);
-      }
-
-      card.style.left = left + "px";
-      card.style.top = top + "px";
-
-      // Pointer event handlers for dragging
-      card.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        const rect = card.getBoundingClientRect();
-        const areaRectNow = gameArea.getBoundingClientRect();
-
-        const offsetX = e.clientX - rect.left;
-        const offsetY = e.clientY - rect.top;
-
-        currentDrag = {
-          card,
-          offsetX,
-          offsetY
-        };
-
-        card.classList.add("dragging");
-        card.setPointerCapture(e.pointerId);
-      });
-
-      card.addEventListener("pointermove", (e) => {
-        if (!currentDrag || currentDrag.card !== card) return;
-
-        const areaRectNow = gameArea.getBoundingClientRect();
-
-        let newLeft =
-          e.clientX - areaRectNow.left - currentDrag.offsetX;
-        let newTop =
-          e.clientY - areaRectNow.top - currentDrag.offsetY;
-
-        // Constrain within game area
-        const maxLeft = areaRectNow.width - card.offsetWidth;
-        const maxTop = areaRectNow.height - card.offsetHeight;
-
-        newLeft = Math.max(0, Math.min(maxLeft, newLeft));
-        newTop = Math.max(0, Math.min(maxTop, newTop));
-
-        card.style.left = newLeft + "px";
-        card.style.top = newTop + "px";
-      });
-
-      card.addEventListener("pointerup", (e) => {
-        if (!currentDrag || currentDrag.card !== card) return;
-
-        card.classList.remove("dragging");
-        card.releasePointerCapture(e.pointerId);
-
-        // Evaluate placement: left half (Feinde) vs right half (Freunde)
-        const areaRectNow = gameArea.getBoundingClientRect();
-        const cardRect = card.getBoundingClientRect();
-        const centerX = (cardRect.left + cardRect.right) / 2 - areaRectNow.left;
-
-        const midX = areaRectNow.width / 2;
-        const side = centerX < midX ? "left" : "right"; // left = Feinde, right = Freunde
-
-        const expected = card.dataset.type; // "freund" or "feind"
-        let feedbackType;
-
-        if (side === "left" && expected === "feind") {
-          feedbackType = "feind";
-        } else if (side === "right" && expected === "freund") {
-          feedbackType = "freund";
-        } else {
-          feedbackType = "falsch";
-        }
-
-        showFeedback(card, feedbackType);
-
-        currentDrag = null;
-      });
-
-      return card;
-    }
-
-    function showFeedback(card, feedbackType) {
-      const cardId = card.dataset.id;
-
-      // Remove previous feedback for this card (if any)
-      if (feedbackMap.has(cardId)) {
-        const oldIcon = feedbackMap.get(cardId);
-        if (oldIcon && oldIcon.parentNode) {
-          oldIcon.parentNode.removeChild(oldIcon);
-        }
-        feedbackMap.delete(cardId);
-      }
-
-      const icon = document.createElement("img");
-      icon.src = FEEDBACK_IMAGES[feedbackType];
-      icon.className = "feedback-icon";
-      icon.dataset.cardId = cardId;
-
-      // Position at the center of the card (slightly above)
-      const areaRect = gameArea.getBoundingClientRect();
-      const cardRect = card.getBoundingClientRect();
-
-      const centerX =
-        (cardRect.left + cardRect.right) / 2 - areaRect.left;
-      const centerY =
-        (cardRect.top + cardRect.bottom) / 2 - areaRect.top - 10;
-
-      icon.style.left = centerX + "px";
-      icon.style.top = centerY + "px";
-
-      // Clicking the feedback icon removes it
-      icon.addEventListener("click", () => {
-        if (icon.parentNode) {
-          icon.parentNode.removeChild(icon);
-        }
-        feedbackMap.delete(cardId);
-      });
-
-      gameArea.appendChild(icon);
-      feedbackMap.set(cardId, icon);
-    }
-
-    function initGame() {
-      gameArea
-        .querySelectorAll(".card, .feedback-icon")
-        .forEach((el) => el.remove());
-      feedbackMap.clear();
-
-      const areaRect = gameArea.getBoundingClientRect();
-      const shuffled = shuffle([...cardsData]);
-
-      shuffled.forEach((cardData) => {
-        const card = createCard(cardData, areaRect);
-        gameArea.appendChild(card);
-      });
-    }
-
-    window.addEventListener("load", initGame);
-  </script>
-</body>
-</html>
+      { id: 2, type: "freund",
 
