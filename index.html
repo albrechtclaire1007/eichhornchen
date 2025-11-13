@@ -3,15 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Freunde & Feinde – Sortierspiel</title>
+  <title>Eichhörnchen Sortierspiel</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      background: #ffffff;
+      background: white;
+      font-family: sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -21,55 +20,57 @@
     .game-shell {
       width: 100%;
       max-width: 1100px;
-      aspect-ratio: 16 / 9;
-      position: relative;
+      aspect-ratio: 16/9;
+      background: white;
       border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
       overflow: hidden;
-      background: #ffffff;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-    }
-
-    .game-area {
       position: relative;
-      width: 100%;
-      height: 100%;
-      background: #ffffff;
-      touch-action: none;
     }
 
-    /* Larger forest in the middle */
-    .forest-frame {
+    .forest-area {
       position: absolute;
-      top: 10%;
-      bottom: 10%;
-      left: 20%;
-      right: 20%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 70%;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       pointer-events: none;
     }
 
-    .forest-img {
-      width: 100%;
+    .forest-area img {
+      width: 90%;
       height: 100%;
       object-fit: cover;
-      border-radius: 16px;
-      display: block;
+      border-radius: 10px;
     }
 
-    /* Animals (big, no box) */
-    .card {
+    /* ANIMALS ROW AT BOTTOM */
+    .bottom-row {
       position: absolute;
-      width: 180px;   /* big animals */
-      height: 180px;
-      background: transparent;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 30%;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
+      gap: 25px;
+      padding: 10px;
+      overflow: hidden;
+      background: white;
+    }
+
+    .card {
+      width: 180px;
+      height: 180px;
+      position: relative;
       cursor: grab;
-      transition: transform 0.15s ease;
+      user-select: none;
       touch-action: none;
+      flex-shrink: 0;
     }
 
     .card img {
@@ -79,323 +80,160 @@
       pointer-events: none;
     }
 
-    .card.dragging {
-      cursor: grabbing;
+    .dragging {
+      position: absolute;
+      z-index: 999;
       transform: scale(1.1);
     }
 
-    /* Smaller answer popup in the middle */
+    /* Popup */
     .feedback-overlay {
       position: absolute;
       inset: 0;
       display: none;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       pointer-events: none;
-      background: rgba(0,0,0,0);
     }
 
     .feedback-overlay img {
-      width: 30%;          /* half the old size */
-      max-width: 225px;
-      height: auto;
-      pointer-events: auto;
+      width: 30%;
+      max-width: 220px;
       cursor: pointer;
-      user-select: none;
+      pointer-events: auto;
     }
   </style>
 </head>
 <body>
-  <div class="game-shell">
-    <div class="game-area" id="game-area">
-      <div class="forest-frame">
-        <img
-          class="forest-img"
-          src="https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png"
-          alt=""
-        />
-      </div>
 
-      <!-- Centre feedback badge -->
-      <div class="feedback-overlay" id="feedback-overlay">
-        <img id="feedback-img" alt="" />
-      </div>
-    </div>
+<div class="game-shell">
+
+  <!-- TOP FOREST -->
+  <div class="forest-area">
+    <img src="https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png" />
   </div>
 
-  <script>
-    const CARD_SIZE = 180;
+  <!-- FEEDBACK CENTER -->
+  <div class="feedback-overlay" id="feedback">
+    <img id="feedback-img" />
+  </div>
 
-    // 1–8 = Freunde, 9–15 = Feinde
-    const cardsData = [
-      { id: 1, type: "freund", src: "https://i.postimg.cc/LY4JvcjD/1.png" },
-      { id: 2, type: "freund", src: "https://i.postimg.cc/vg84XJ5N/2.png" },
-      { id: 3, type: "freund", src: "https://i.postimg.cc/DJfS59qK/3.png" },
-      { id: 4, type: "freund", src: "https://i.postimg.cc/Q9NFS2ps/4.png" },
-      { id: 5, type: "freund", src: "https://i.postimg.cc/YG2v8517/5.png" },
-      { id: 6, type: "freund", src: "https://i.postimg.cc/mzZPVvQL/6.png" },
-      { id: 7, type: "freund", src: "https://i.postimg.cc/cg1vTpQH/7.png" },
-      { id: 8, type: "freund", src: "https://i.postimg.cc/dkWLf5BF/8.png" },
+  <!-- ANIMALS ROW -->
+  <div class="bottom-row" id="bottom-row"></div>
 
-      { id: 9, type: "feind", src: "https://i.postimg.cc/R6PNYgR4/9.png" },
-      { id: 10, type: "feind", src: "https://i.postimg.cc/TLkpst9Y/10.png" },
-      { id: 11, type: "feind", src: "https://i.postimg.cc/gXMn7gDz/11.png" },
-      { id: 12, type: "feind", src: "https://i.postimg.cc/XG2pPs8v/12.png" },
-      { id: 13, type: "feind", src: "https://i.postimg.cc/ZBfCQwcR/13.png" },
-      { id: 14, type: "feind", src: "https://i.postimg.cc/dkWLf5BL/14.png" },
-      { id: 15, type: "feind", src: "https://i.postimg.cc/JDTGFpqy/15.png" }
-    ];
+</div>
 
-    const gameArea = document.getElementById("game-area");
-    const feedbackOverlay = document.getElementById("feedback-overlay");
-    const feedbackImg = document.getElementById("feedback-img");
+<script>
+const CARD_SIZE = 180;
 
-    const FEEDBACK_IMAGES = {
-      falsch: "https://i.postimg.cc/zLsKJzHC/falsch.png",
-      feind: "https://i.postimg.cc/p9wz2W5Y/feinde.png",
-      freund: "https://i.postimg.cc/B8rHqSP5/freunde.png"
-    };
+const cardsData = [
+  { id: 1, type: "freund", src: "https://i.postimg.cc/LY4JvcjD/1.png" },
+  { id: 2, type: "freund", src: "https://i.postimg.cc/vg84XJ5N/2.png" },
+  { id: 3, type: "freund", src: "https://i.postimg.cc/DJfS59qK/3.png" },
+  { id: 4, type: "freund", src: "https://i.postimg.cc/Q9NFS2ps/4.png" },
+  { id: 5, type: "freund", src: "https://i.postimg.cc/YG2v8517/5.png" },
+  { id: 6, type: "freund", src: "https://i.postimg.cc/mzZPVvQL/6.png" },
+  { id: 7, type: "freund", src: "https://i.postimg.cc/cg1vTpQH/7.png" },
+  { id: 8, type: "freund", src: "https://i.postimg.cc/dkWLf5BF/8.png" },
 
-    let currentDrag = null;
+  { id: 9, type: "feind", src: "https://i.postimg.cc/R6PNYgR4/9.png" },
+  { id: 10, type: "feind", src: "https://i.postimg.cc/TLkpst9Y/10.png" },
+  { id: 11, type: "feind", src: "https://i.postimg.cc/gXMn7gDz/11.png" },
+  { id: 12, type: "feind", src: "https://i.postimg.cc/XG2pPs8v/12.png" },
+  { id: 13, type: "feind", src: "https://i.postimg.cc/ZBfCQwcR/13.png" },
+  { id: 14, type: "feind", src: "https://i.postimg.cc/dkWLf5BL/14.png" },
+  { id: 15, type: "feind", src: "https://i.postimg.cc/JDTGFpqy/15.png" }
+];
 
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
+const bottomRow = document.getElementById("bottom-row");
+const feedback = document.getElementById("feedback");
+const feedbackImg = document.getElementById("feedback-img");
 
-    function rectsOverlap(a, b, padding = 0) {
-      return !(
-        a.right < b.left + padding ||
-        a.left > b.right - padding ||
-        a.bottom < b.top + padding ||
-        a.top > b.bottom - padding
-      );
-    }
+const FEEDBACK = {
+  falsch: "https://i.postimg.cc/zLsKJzHC/falsch.png",
+  feind: "https://i.postimg.cc/p9wz2W5Y/feinde.png",
+  freund: "https://i.postimg.cc/B8rHqSP5/freunde.png"
+};
 
-    // Forest rect for spawn rule: avoid putting the CARD CENTRE inside forest
-    function getForestRect(areaWidth, areaHeight) {
-      return {
-        left: areaWidth * 0.20,
-        right: areaWidth * 0.80,
-        top: areaHeight * 0.10,
-        bottom: areaHeight * 0.90
-      };
-    }
+/* --- Populate bottom row --- */
+cardsData.forEach(card => {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.dataset.type = card.type;
 
-    function findSpawnPosition(areaRect, forestRect, existingRects) {
-      const maxLeft = areaRect.width - CARD_SIZE;
-      const maxTop = areaRect.height - CARD_SIZE;
-      const maxAttempts = 800;
-      const padding = 8;
+  const img = document.createElement("img");
+  img.src = card.src;
+  el.appendChild(img);
 
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const left = Math.random() * maxLeft;
-        const top = Math.random() * maxTop;
+  bottomRow.appendChild(el);
 
-        const candidate = {
-          left,
-          top,
-          right: left + CARD_SIZE,
-          bottom: top + CARD_SIZE
-        };
+  makeDraggable(el);
+});
 
-        // centre point of the card
-        const cx = left + CARD_SIZE / 2;
-        const cy = top + CARD_SIZE / 2;
+/* --- Drag logic --- */
+function makeDraggable(card) {
+  let offsetX, offsetY, startLeft, startTop;
 
-        // centre must not be inside forest rect (so they are "around" it)
-        const inForest =
-          cx > forestRect.left &&
-          cx < forestRect.right &&
-          cy > forestRect.top &&
-          cy < forestRect.bottom;
+  card.addEventListener("pointerdown", (e) => {
+    card.classList.add("dragging");
 
-        if (inForest) continue;
+    const rect = card.getBoundingClientRect();
+    const parentRect = document.querySelector(".game-shell").getBoundingClientRect();
 
-        // avoid existing cards
-        let collides = false;
-        for (const r of existingRects) {
-          if (rectsOverlap(candidate, r, padding)) {
-            collides = true;
-            break;
-          }
-        }
-        if (collides) continue;
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
 
-        return candidate;
-      }
+    startLeft = rect.left - parentRect.left;
+    startTop = rect.top - parentRect.top;
 
-      // Very unlikely fallback
-      return {
-        left: 0,
-        top: 0,
-        right: CARD_SIZE,
-        bottom: CARD_SIZE
-      };
-    }
+    card.setPointerCapture(e.pointerId);
+  });
 
-    function createCard(cardData, position) {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.dataset.id = cardData.id;
-      card.dataset.type = cardData.type;
+  card.addEventListener("pointermove", (e) => {
+    if (!card.classList.contains("dragging")) return;
 
-      const img = document.createElement("img");
-      img.src = cardData.src;
-      img.alt = "";
-      card.appendChild(img);
+    const parentRect = document.querySelector(".game-shell").getBoundingClientRect();
+    let x = e.clientX - parentRect.left - offsetX;
+    let y = e.clientY - parentRect.top - offsetY;
 
-      card.style.left = position.left + "px";
-      card.style.top = position.top + "px";
+    /* keep inside board */
+    x = Math.max(0, Math.min(parentRect.width - CARD_SIZE, x));
+    y = Math.max(0, Math.min(parentRect.height - CARD_SIZE, y));
 
-      let lastLeft = position.left;
-      let lastTop = position.top;
+    card.style.left = x + "px";
+    card.style.top = y + "px";
+    card.style.position = "absolute";
+  });
 
-      card.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        const rect = card.getBoundingClientRect();
-        const areaRectNow = gameArea.getBoundingClientRect();
+  card.addEventListener("pointerup", (e) => {
+    card.classList.remove("dragging");
 
-        const offsetX = e.clientX - rect.left;
-        const offsetY = e.clientY - rect.top;
+    const parentRect = document.querySelector(".game-shell").getBoundingClientRect();
+    const rect = card.getBoundingClientRect();
+    const centerX = (rect.left + rect.right) / 2 - parentRect.left;
 
-        lastLeft = parseFloat(card.style.left) || 0;
-        lastTop = parseFloat(card.style.top) || 0;
+    const type = card.dataset.type;
+    const mid = parentRect.width / 2;
 
-        currentDrag = {
-          card,
-          offsetX,
-          offsetY
-        };
+    let result;
+    if (centerX < mid && type === "feind") result = "feind";
+    else if (centerX > mid && type === "freund") result = "freund";
+    else result = "falsch";
 
-        card.classList.add("dragging");
-        card.setPointerCapture(e.pointerId);
-      });
+    showPopup(result);
+  });
+}
 
-      card.addEventListener("pointermove", (e) => {
-        if (!currentDrag || currentDrag.card !== card) return;
+/* --- Popup --- */
+function showPopup(type) {
+  feedbackImg.src = FEEDBACK[type];
+  feedback.style.display = "flex";
+}
 
-        const areaRectNow = gameArea.getBoundingClientRect();
-        let newLeft = e.clientX - areaRectNow.left - currentDrag.offsetX;
-        let newTop = e.clientY - areaRectNow.top - currentDrag.offsetY;
+feedbackImg.addEventListener("click", () => {
+  feedback.style.display = "none";
+});
+</script>
 
-        const maxLeft = areaRectNow.width - card.offsetWidth;
-        const maxTop = areaRectNow.height - card.offsetHeight;
-
-        newLeft = Math.max(0, Math.min(maxLeft, newLeft));
-        newTop = Math.max(0, Math.min(maxTop, newTop));
-
-        card.style.left = newLeft + "px";
-        card.style.top = newTop + "px";
-      });
-
-      card.addEventListener("pointerup", (e) => {
-        if (!currentDrag || currentDrag.card !== card) return;
-
-        card.classList.remove("dragging");
-        card.releasePointerCapture(e.pointerId);
-
-        const areaRectNow = gameArea.getBoundingClientRect();
-
-        const thisRect = {
-          left: parseFloat(card.style.left) || 0,
-          top: parseFloat(card.style.top) || 0,
-          right: (parseFloat(card.style.left) || 0) + CARD_SIZE,
-          bottom: (parseFloat(card.style.top) || 0) + CARD_SIZE
-        };
-
-        // Check overlap with other cards – if overlapping, snap back
-        const allCards = Array.from(document.querySelectorAll(".card"));
-        let overlapsOther = false;
-        for (const other of allCards) {
-          if (other === card) continue;
-          const left = parseFloat(other.style.left) || 0;
-          const top = parseFloat(other.style.top) || 0;
-          const otherRect = {
-            left,
-            top,
-            right: left + CARD_SIZE,
-            bottom: top + CARD_SIZE
-          };
-          if (rectsOverlap(thisRect, otherRect, 8)) {
-            overlapsOther = true;
-            break;
-          }
-        }
-
-        if (overlapsOther) {
-          card.style.left = lastLeft + "px";
-          card.style.top = lastTop + "px";
-        } else {
-          lastLeft = parseFloat(card.style.left) || lastLeft;
-          lastTop = parseFloat(card.style.top) || lastTop;
-        }
-
-        // Evaluate placement left/right
-        const cardRectDom = card.getBoundingClientRect();
-        const centerX =
-          (cardRectDom.left + cardRectDom.right) / 2 - areaRectNow.left;
-        const midX = areaRectNow.width / 2;
-
-        const side = centerX < midX ? "left" : "right"; // left = Feinde, right = Freunde
-        const expected = card.dataset.type;
-
-        let feedbackType;
-        if (side === "left" && expected === "feind") {
-          feedbackType = "feind";
-        } else if (side === "right" && expected === "freund") {
-          feedbackType = "freund";
-        } else {
-          feedbackType = "falsch";
-        }
-
-        showFeedback(feedbackType);
-
-        currentDrag = null;
-      });
-
-      return card;
-    }
-
-    function showFeedback(type) {
-      feedbackImg.src = FEEDBACK_IMAGES[type];
-      feedbackOverlay.style.display = "flex";
-    }
-
-    feedbackImg.addEventListener("click", () => {
-      feedbackOverlay.style.display = "none";
-    });
-
-    function initGame() {
-      // Clear old cards
-      gameArea.querySelectorAll(".card").forEach((el) => el.remove());
-      feedbackOverlay.style.display = "none";
-
-      const areaWidth = gameArea.clientWidth;
-      const areaHeight = gameArea.clientHeight;
-
-      const areaRectLocal = { width: areaWidth, height: areaHeight };
-      const forestRectLocal = getForestRect(areaWidth, areaHeight);
-
-      const existingRects = [];
-      const shuffled = shuffle([...cardsData]);
-
-      shuffled.forEach((cardData) => {
-        const pos = findSpawnPosition(
-          areaRectLocal,
-          forestRectLocal,
-          existingRects
-        );
-        existingRects.push(pos);
-        const card = createCard(cardData, pos);
-        gameArea.appendChild(card);
-      });
-    }
-
-    window.addEventListener("load", initGame);
-  </script>
 </body>
 </html>
