@@ -1,517 +1,200 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Freunde und Feinde vom Eichhörnchen – Sortierspiel</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    :root {
-      --freund-color: rgba(53, 122, 56, 0.8);
-      --feind-color: rgba(167, 44, 44, 0.8);
-      --accent: #f4f0e6;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Freunde & Feinde – Sortierspiel (No Text)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
 
-    * {
-      box-sizing: border-box;
-    }
+  .game-shell {
+    width: 100%;
+    max-width: 1100px;
+    aspect-ratio: 16/9;
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+  }
 
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #222;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
+  .game-area {
+    width: 100%;
+    height: 100%;
+    background-image: url("https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png");
+    background-size: cover;
+    background-position: center;
+    position: relative;
+  }
 
-    .game-shell {
-      width: 100%;
-      max-width: 1100px;
-      aspect-ratio: 16 / 9;
-      background: #000;
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-      display: flex;
-      flex-direction: column;
-      color: #fff;
-    }
+  /* LEFT + RIGHT invisible drop zones */
+  .drop-zone {
+    position: absolute;
+    top: 10%;
+    bottom: 22%;
+    width: 40%;
+    pointer-events: auto;
+  }
+  .drop-zone.left { left: 3%; }
+  .drop-zone.right { right: 3%; }
 
-    .game-header {
-      padding: 6px 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: linear-gradient(90deg, #3b2b20, #70543a);
-      color: #fdf7ed;
-      font-size: 14px;
-    }
+  /* Tray for cards */
+  .tray {
+    position: absolute;
+    left: 3%;
+    right: 3%;
+    bottom: 2%;
+    height: 18%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    backdrop-filter: blur(3px);
+  }
 
-    .game-header h1 {
-      font-size: 16px;
-      margin: 0;
-      font-weight: 600;
-    }
+  /* Cards */
+  .card {
+    width: 60px;
+    height: 60px;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: grab;
+    background: transparent;
+  }
 
-    .buttons {
-      display: flex;
-      gap: 8px;
-    }
+  .card img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+  }
 
-    button {
-      border: none;
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 13px;
-      cursor: pointer;
-      background: rgba(255,255,255,0.12);
-      color: #fff;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      backdrop-filter: blur(4px);
-    }
+  .card:active { cursor: grabbing; }
 
-    button:hover {
-      background: rgba(255,255,255,0.22);
-    }
+  /* Divider */
+  .divider {
+    position: absolute;
+    inset: 5% 49% 20% 49%;
+    pointer-events: none;
+  }
 
-    button:active {
-      transform: translateY(1px);
-    }
+  .divider path {
+    fill: none;
+    stroke: rgba(255,255,255,0.7);
+    stroke-width: 10;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
 
-    .score-output {
-      font-size: 13px;
-      min-width: 70px;
-      text-align: right;
-    }
-
-    .game-area {
-      position: relative;
-      flex: 1;
-      overflow: hidden;
-      background-image: url("https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png");
-      background-size: cover;
-      background-position: center;
-    }
-
-    /* Semi-transparent panels for drop zones */
-    .drop-zone {
-      position: absolute;
-      top: 10%;
-      bottom: 22%;
-      width: 40%;
-      padding: 10px;
-      display: flex;
-      flex-wrap: wrap;
-      align-content: flex-start;
-      gap: 6px;
-      pointer-events: auto;
-    }
-
-    .drop-zone.left {
-      left: 3%;
-      /* Feinde left */
-    }
-
-    .drop-zone.right {
-      right: 3%;
-      /* Freunde right */
-    }
-
-    .drop-label {
-      position: absolute;
-      top: 4%;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      background: rgba(0,0,0,0.4);
-      backdrop-filter: blur(3px);
-    }
-
-    .drop-label.feinde {
-      left: 4%;
-      border: 2px solid var(--feind-color);
-    }
-
-    .drop-label.freunde {
-      right: 4%;
-      border: 2px solid var(--freund-color);
-    }
-
-    .drop-zone.hover {
-      outline: 2px dashed rgba(255,255,255,0.7);
-      outline-offset: 3px;
-    }
-
-    /* SVG divider approximating the slalom road */
-    .divider {
-      position: absolute;
-      inset: 5% 49% 18% 49%;
-      pointer-events: none;
-      filter: drop-shadow(0 0 5px rgba(0,0,0,0.6));
-    }
-
-    .divider path {
-      fill: none;
-      stroke: #f8f5ef;
-      stroke-width: 12;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    /* Card tray at the bottom */
-    .tray {
-      position: absolute;
-      left: 3%;
-      right: 3%;
-      bottom: 2%;
-      min-height: 18%;
-      max-height: 22%;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-content: flex-start;
-      padding: 6px 8px;
-      background: rgba(15,10,7,0.76);
-      border-radius: 14px;
-      backdrop-filter: blur(4px);
-      overflow-y: auto;
-    }
-
-    .tray-label {
-      position: absolute;
-      bottom: calc(2% + 18% + 4px);
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      background: rgba(0,0,0,0.55);
-      border: 1px solid rgba(255,255,255,0.25);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .card {
-      width: 56px;
-      height: 56px;
-      border-radius: 12px;
-      overflow: hidden;
-      background: rgba(255,255,255,0.9);
-      cursor: grab;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      border: 2px solid transparent;
-      touch-action: none;
-    }
-
-    .card img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      pointer-events: none;
-    }
-
-    .card:active {
-      cursor: grabbing;
-    }
-
-    .card.selected {
-      border-color: #ffd84b;
-      box-shadow: 0 0 0 3px rgba(255,216,75,0.6);
-    }
-
-    .card.correct {
-      border-color: #41b35d;
-      box-shadow: 0 0 0 3px rgba(65,179,93,0.7);
-    }
-
-    .card.wrong {
-      border-color: #e15959;
-      box-shadow: 0 0 0 3px rgba(225,89,89,0.8);
-    }
-
-    .helper-hint {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 220px;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      font-size: 12px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      background: rgba(0,0,0,0.55);
-      border: 1px dashed rgba(255,255,255,0.4);
-    }
-
-    @media (max-width: 800px) {
-      .game-shell {
-        border-radius: 0;
-      }
-
-      .card {
-        width: 52px;
-        height: 52px;
-      }
-
-      .game-header h1 {
-        font-size: 14px;
-      }
-
-      .game-header {
-        font-size: 12px;
-      }
-    }
-  </style>
+</style>
 </head>
 <body>
-  <div class="game-shell">
-    <div class="game-header">
-      <h1>Freunde &amp; Feinde vum Eichhörnchen</h1>
-      <div class="buttons">
-        <button id="btn-check">✅ Kontrolléieren</button>
-        <button id="btn-reset">🔁 Nei mëschen</button>
-        <div class="score-output" id="score-output">&nbsp;</div>
-      </div>
-    </div>
 
-    <div class="game-area">
-      <!-- Labels -->
-      <div class="drop-label feinde">Feinde (lénks)</div>
-      <div class="drop-label freunde">Freunde (riets)</div>
+<div class="game-shell">
+  <div class="game-area">
 
-      <!-- Drop zones -->
-      <div class="drop-zone left" id="feinde-zone" data-type="feind"></div>
-      <div class="drop-zone right" id="freunde-zone" data-type="freund"></div>
+    <!-- Invisible drop zones -->
+    <div class="drop-zone left" id="feinde-zone"></div>
+    <div class="drop-zone right" id="freunde-zone"></div>
 
-      <!-- Slalom “road” divider (approximation) -->
-      <svg class="divider" viewBox="0 0 100 300" preserveAspectRatio="xMidYMid slice">
-        <!-- You can copy the exact slalom road curve from the background
-             as an SVG path later and replace the "d" below -->
-        <path d="
-          M 50 0
-          C 38 40, 62 80, 48 120
-          C 34 160, 66 200, 52 240
-          C 38 280, 62 320, 50 360
-        " />
-      </svg>
+    <!-- Slalom divider -->
+    <svg class="divider" viewBox="0 0 100 300">
+      <path d="
+        M 50 0
+        C 40 40, 60 80, 48 120
+        C 36 160, 64 200, 52 240
+        C 40 280, 60 320, 50 360
+      " />
+    </svg>
 
-      <!-- Card tray -->
-      <div class="tray-label">Kaarte fir ze zortéieren (klick &amp; dann lénks/riets oder drag &amp; drop)</div>
-      <div class="tray" id="tray"></div>
+    <!-- Tray -->
+    <div class="tray" id="tray"></div>
 
-      <div class="helper-hint" id="helper-hint">
-        Tipp: Klicke op eng Kaart fir se ze wielen, duerno op d'linken oder rietsen Deel vum Bild.  
-        Oder: zitt se einfach per Drag &amp; Drop op déi richteg Säit.
-      </div>
-    </div>
   </div>
+</div>
 
-  <script>
-    // --- CONFIG: image cards & types ---
-    // Assumption: 1–8 = Freunde, 9–15 = Feinde
-    const cardsData = [
-      { id: 1, type: "freund", src: "https://i.postimg.cc/LY4JvcjD/1.png" },
-      { id: 2, type: "freund", src: "https://i.postimg.cc/vg84XJ5N/2.png" },
-      { id: 3, type: "freund", src: "https://i.postimg.cc/DJfS59qK/3.png" },
-      { id: 4, type: "freund", src: "https://i.postimg.cc/Q9NFS2ps/4.png" },
-      { id: 5, type: "freund", src: "https://i.postimg.cc/YG2v8517/5.png" },
-      { id: 6, type: "freund", src: "https://i.postimg.cc/mzZPVvQL/6.png" },
-      { id: 7, type: "freund", src: "https://i.postimg.cc/cg1vTpQH/7.png" },
-      { id: 8, type: "freund", src: "https://i.postimg.cc/dkWLf5BF/8.png" },
+<script>
+  /* Card data — NO TEXT, ONLY IMAGES */
+  const cardsData = [
+    { id: 1, type: "freund", src: "https://i.postimg.cc/LY4JvcjD/1.png" },
+    { id: 2, type: "freund", src: "https://i.postimg.cc/vg84XJ5N/2.png" },
+    { id: 3, type: "freund", src: "https://i.postimg.cc/DJfS59qK/3.png" },
+    { id: 4, type: "freund", src: "https://i.postimg.cc/Q9NFS2ps/4.png" },
+    { id: 5, type: "freund", src: "https://i.postimg.cc/YG2v8517/5.png" },
+    { id: 6, type: "freund", src: "https://i.postimg.cc/mzZPVvQL/6.png" },
+    { id: 7, type: "freund", src: "https://i.postimg.cc/cg1vTpQH/7.png" },
+    { id: 8, type: "freund", src: "https://i.postimg.cc/dkWLf5BF/8.png" },
 
-      { id: 9, type: "feind", src: "https://i.postimg.cc/R6PNYgR4/9.png" },
-      { id: 10, type: "feind", src: "https://i.postimg.cc/TLkpst9Y/10.png" },
-      { id: 11, type: "feind", src: "https://i.postimg.cc/gXMn7gDz/11.png" },
-      { id: 12, type: "feind", src: "https://i.postimg.cc/XG2pPs8v/12.png" },
-      { id: 13, type: "feind", src: "https://i.postimg.cc/ZBfCQwcR/13.png" },
-      { id: 14, type: "feind", src: "https://i.postimg.cc/dkWLf5BL/14.png" },
-      { id: 15, type: "feind", src: "https://i.postimg.cc/JDTGFpqy/15.png" }
-    ];
+    { id: 9, type: "feind", src: "https://i.postimg.cc/R6PNYgR4/9.png" },
+    { id: 10, type: "feind", src: "https://i.postimg.cc/TLkpst9Y/10.png" },
+    { id: 11, type: "feind", src: "https://i.postimg.cc/gXMn7gDz/11.png" },
+    { id: 12, type: "feind", src: "https://i.postimg.cc/XG2pPs8v/12.png" },
+    { id: 13, type: "feind", src: "https://i.postimg.cc/ZBfCQwcR/13.png" },
+    { id: 14, type: "feind", src: "https://i.postimg.cc/dkWLf5BL/14.png" },
+    { id: 15, type: "feind", src: "https://i.postimg.cc/JDTGFpqy/15.png" }
+  ];
 
-    const tray = document.getElementById("tray");
-    const feindeZone = document.getElementById("feinde-zone");
-    const freundeZone = document.getElementById("freunde-zone");
-    const helperHint = document.getElementById("helper-hint");
-    const scoreOutput = document.getElementById("score-output");
-    const btnCheck = document.getElementById("btn-check");
-    const btnReset = document.getElementById("btn-reset");
+  const tray = document.getElementById("tray");
+  const feindeZone = document.getElementById("feinde-zone");
+  const freundeZone = document.getElementById("freunde-zone");
 
-    let selectedCard = null;
-
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
     }
+    return array;
+  }
 
-    function createCard(card) {
+  function init() {
+    tray.innerHTML = "";
+    feindeZone.innerHTML = "";
+    freundeZone.innerHTML = "";
+
+    shuffle([...cardsData]).forEach(card => {
       const el = document.createElement("div");
       el.className = "card";
       el.draggable = true;
-      el.dataset.id = card.id;
       el.dataset.type = card.type;
+      el.dataset.id = card.id;
 
       const img = document.createElement("img");
       img.src = card.src;
-      img.alt = card.type === "freund" ? "Freund" : "Feind";
       el.appendChild(img);
 
-      // Click select
-      el.addEventListener("click", () => {
-        // remove previous selection
-        const prev = document.querySelector(".card.selected");
-        if (prev && prev !== el) {
-          prev.classList.remove("selected");
-        }
-        if (el.classList.contains("selected")) {
-          el.classList.remove("selected");
-          selectedCard = null;
-        } else {
-          el.classList.add("selected");
-          selectedCard = el;
-          helperHint.style.display = "none";
-        }
+      el.addEventListener("dragstart", e => {
+        e.dataTransfer.setData("text", card.id);
+        setTimeout(() => el.classList.add("dragging"), 0);
       });
 
-      // Drag & Drop
-      el.addEventListener("dragstart", (e) => {
-        e.dataTransfer.setData("text/plain", String(card.id));
-        setTimeout(() => {
-          el.classList.add("dragging");
-        }, 0);
-        helperHint.style.display = "none";
-      });
+      el.addEventListener("dragend", () => el.classList.remove("dragging"));
 
-      el.addEventListener("dragend", () => {
-        el.classList.remove("dragging");
-      });
-
-      return el;
-    }
-
-    function clearSelectionsAndFeedback() {
-      selectedCard = null;
-      document.querySelectorAll(".card").forEach(c => {
-        c.classList.remove("selected", "correct", "wrong");
-      });
-      scoreOutput.textContent = "";
-    }
-
-    function initGame() {
-      tray.innerHTML = "";
-      feindeZone.innerHTML = "";
-      freundeZone.innerHTML = "";
-      helperHint.style.display = "block";
-      clearSelectionsAndFeedback();
-
-      const shuffled = shuffle([...cardsData]);
-      shuffled.forEach(card => {
-        const el = createCard(card);
-        tray.appendChild(el);
-      });
-    }
-
-    // Common handler for zone clicking (for "select & click" interaction)
-    function setupZoneClick(zone) {
-      zone.addEventListener("click", () => {
-        if (selectedCard) {
-          zone.appendChild(selectedCard);
-          selectedCard.classList.remove("selected");
-          selectedCard = null;
-        }
-      });
-    }
-
-    setupZoneClick(feindeZone);
-    setupZoneClick(freundeZone);
-    tray.addEventListener("click", () => {
-      // move card back to tray if selected and user clicks empty tray area
-      if (selectedCard && selectedCard.parentElement !== tray) {
-        tray.appendChild(selectedCard);
-        selectedCard.classList.remove("selected");
-        selectedCard = null;
-      }
+      tray.appendChild(el);
     });
+  }
 
-    // Drag & drop on zones + tray
-    [feindeZone, freundeZone, tray].forEach(zone => {
-      zone.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        if (zone !== tray) {
-          zone.classList.add("hover");
-        }
-      });
-
-      zone.addEventListener("dragleave", () => {
-        zone.classList.remove("hover");
-      });
-
-      zone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        zone.classList.remove("hover");
-        const id = e.dataTransfer.getData("text/plain");
-        if (!id) return;
-        const cardEl = document.querySelector(`.card[data-id="${id}"]`);
-        if (cardEl) {
-          zone.appendChild(cardEl);
-        }
-      });
+  // DROP HANDLING
+  [feindeZone, freundeZone, tray].forEach(zone => {
+    zone.addEventListener("dragover", e => e.preventDefault());
+    zone.addEventListener("drop", e => {
+      e.preventDefault();
+      const id = e.dataTransfer.getData("text");
+      const card = document.querySelector(`.card[data-id="${id}"]`);
+      if (card) zone.appendChild(card);
     });
+  });
 
-    // Check answers
-    btnCheck.addEventListener("click", () => {
-      let correct = 0;
-      let total = 0;
+  init();
+</script>
 
-      document.querySelectorAll(".card").forEach(card => {
-        card.classList.remove("correct", "wrong");
-        const expectedType = card.dataset.type;
-        let actualPlacement = "tray";
-
-        if (card.parentElement === feindeZone) {
-          actualPlacement = "feind";
-        } else if (card.parentElement === freundeZone) {
-          actualPlacement = "freund";
-        }
-
-        if (actualPlacement === "tray") {
-          // Not sorted yet -> no feedback color
-        } else {
-          total++;
-          if (actualPlacement === expectedType) {
-            correct++;
-            card.classList.add("correct");
-          } else {
-            card.classList.add("wrong");
-          }
-        }
-      });
-
-      if (total === 0) {
-        scoreOutput.textContent = "Sortéier fir d'éischt e puer!";
-      } else {
-        scoreOutput.textContent = `${correct} / ${total} richteg`;
-      }
-    });
-
-    // Reset
-    btnReset.addEventListener("click", () => {
-      initGame();
-    });
-
-    // Init on load
-    initGame();
-  </script>
 </body>
 </html>
+
