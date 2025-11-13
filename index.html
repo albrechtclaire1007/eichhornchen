@@ -37,7 +37,7 @@
       touch-action: none;
     }
 
-    /* Forest in the middle */
+    /* Forest image centered */
     .forest-frame {
       position: absolute;
       top: 15%;
@@ -58,35 +58,23 @@
       display: block;
     }
 
-    /* Your red border SVG overlay (change src to your own file name) */
-    .border-svg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      pointer-events: none;
-    }
-
-    /* Cards = animals */
+    /* Cards = animals (now bigger, no white box) */
     .card {
       position: absolute;
-      width: 90px;   /* 150% of 60px */
-      height: 90px;
-      border-radius: 16px;
-      background: transparent; /* PNG stays transparent */
+      width: 180px;   /* 2x previous 90px */
+      height: 180px;
+      background: transparent;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: grab;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
-      transition: box-shadow 0.15s ease, transform 0.15s ease;
+      transition: transform 0.15s ease;
       touch-action: none;
     }
 
     .card img {
-      width: 80%;
-      height: 80%;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
       pointer-events: none;
     }
@@ -94,23 +82,22 @@
     .card.dragging {
       cursor: grabbing;
       transform: scale(1.1);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
     }
 
-    /* Big answer badge in the middle */
+    /* Smaller answer popup in the middle */
     .feedback-overlay {
       position: absolute;
       inset: 0;
       display: none;
       align-items: center;
       justify-content: center;
-      pointer-events: none; /* click-through except on img */
-      background: rgba(0,0,0,0.0); /* no dark overlay */
+      pointer-events: none;
+      background: rgba(0,0,0,0);
     }
 
     .feedback-overlay img {
-      width: 60%;
-      max-width: 450px;
+      width: 30%;          /* was 60% */
+      max-width: 225px;    /* was 450px */
       height: auto;
       pointer-events: auto;
       cursor: pointer;
@@ -122,17 +109,15 @@
   <div class="game-shell">
     <div class="game-area" id="game-area">
       <div class="forest-frame">
-        <!-- Forest scene in the middle -->
         <img
           class="forest-img"
           src="https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png"
           alt=""
         />
-        <!-- Red border SVG overlay (replace "red-border.svg" with your actual file name) -->
-        <img class="border-svg" src="red-border.svg" alt="" />
+        <!-- SVG border removed to avoid the "?" -->
       </div>
 
-      <!-- Big feedback badge centre-screen -->
+      <!-- Centre feedback badge -->
       <div class="feedback-overlay" id="feedback-overlay">
         <img id="feedback-img" alt="" />
       </div>
@@ -140,9 +125,9 @@
   </div>
 
   <script>
-    const CARD_SIZE = 90;
+    const CARD_SIZE = 180; // 2x bigger
 
-    // Card data: 1–8 = Freunde, 9–15 = Feinde
+    // 1–8 = Freunde, 9–15 = Feinde
     const cardsData = [
       { id: 1, type: "freund", src: "https://i.postimg.cc/LY4JvcjD/1.png" },
       { id: 2, type: "freund", src: "https://i.postimg.cc/vg84XJ5N/2.png" },
@@ -182,7 +167,6 @@
       return array;
     }
 
-    // Simple helper to avoid placing cards over the forest area
     function rectsOverlap(a, b, padding = 0) {
       return !(
         a.right < b.left + padding ||
@@ -192,7 +176,50 @@
       );
     }
 
-    function createCard(cardData, areaRect, forestRect) {
+    // Find a spawn position that doesn't overlap forest or existing cards
+    function findSpawnPosition(areaRect, forestRect, existingRects) {
+      const maxLeft = areaRect.width - CARD_SIZE;
+      const maxTop = areaRect.height - CARD_SIZE;
+      const maxAttempts = 500;
+      const padding = 8;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const left = Math.random() * maxLeft;
+        const top = Math.random() * maxTop;
+
+        const candidate = {
+          left,
+          top,
+          right: left + CARD_SIZE,
+          bottom: top + CARD_SIZE
+        };
+
+        // avoid forest
+        if (rectsOverlap(candidate, forestRect, padding)) continue;
+
+        // avoid other cards
+        let collides = false;
+        for (const r of existingRects) {
+          if (rectsOverlap(candidate, r, padding)) {
+            collides = true;
+            break;
+          }
+        }
+        if (collides) continue;
+
+        return candidate;
+      }
+
+      // Fallback – if we fail, just put it somewhere (unlikely to happen)
+      return {
+        left: 0,
+        top: 0,
+        right: CARD_SIZE,
+        bottom: CARD_SIZE
+      };
+    }
+
+    function createCard(cardData, position) {
       const card = document.createElement("div");
       card.className = "card";
       card.dataset.id = cardData.id;
@@ -203,35 +230,13 @@
       img.alt = "";
       card.appendChild(img);
 
-      // Place randomly in white area (not overlapping forestRect)
-      const maxLeft = areaRect.width - CARD_SIZE;
-      const maxTop = areaRect.height - CARD_SIZE;
+      card.style.left = position.left + "px";
+      card.style.top = position.top + "px";
 
-      let left, top;
-      const maxAttempts = 300;
-      let attempts = 0;
+      // Remember last non-overlapping position
+      let lastLeft = position.left;
+      let lastTop = position.top;
 
-      do {
-        left = Math.random() * maxLeft;
-        top = Math.random() * maxTop;
-
-        const cardRectLocal = {
-          left,
-          top,
-          right: left + CARD_SIZE,
-          bottom: top + CARD_SIZE
-        };
-
-        if (!rectsOverlap(cardRectLocal, forestRect, 10)) {
-          break;
-        }
-        attempts++;
-      } while (attempts < maxAttempts);
-
-      card.style.left = left + "px";
-      card.style.top = top + "px";
-
-      // Drag logic
       card.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         const rect = card.getBoundingClientRect();
@@ -239,6 +244,9 @@
 
         const offsetX = e.clientX - rect.left;
         const offsetY = e.clientY - rect.top;
+
+        lastLeft = parseFloat(card.style.left) || 0;
+        lastTop = parseFloat(card.style.top) || 0;
 
         currentDrag = {
           card,
@@ -273,14 +281,46 @@
         card.classList.remove("dragging");
         card.releasePointerCapture(e.pointerId);
 
-        // Check placement: left half = Feinde, right half = Freunde
         const areaRectNow = gameArea.getBoundingClientRect();
-        const cardRect = card.getBoundingClientRect();
-        const centerX = (cardRect.left + cardRect.right) / 2 - areaRectNow.left;
-        const midX = areaRectNow.width / 2;
+        const thisRect = {
+          left: parseFloat(card.style.left) || 0,
+          top: parseFloat(card.style.top) || 0,
+          right: (parseFloat(card.style.left) || 0) + CARD_SIZE,
+          bottom: (parseFloat(card.style.top) || 0) + CARD_SIZE
+        };
 
-        const side = centerX < midX ? "left" : "right";
-        const expected = card.dataset.type; // "freund" or "feind"
+        // Check overlap with other cards; if overlapping, snap back
+        const allCards = Array.from(document.querySelectorAll(".card"));
+        let overlapsOther = false;
+        for (const other of allCards) {
+          if (other === card) continue;
+          const left = parseFloat(other.style.left) || 0;
+          const top = parseFloat(other.style.top) || 0;
+          const otherRect = {
+            left,
+            top,
+            right: left + CARD_SIZE,
+            bottom: top + CARD_SIZE
+          };
+          if (rectsOverlap(thisRect, otherRect, 8)) {
+            overlapsOther = true;
+            break;
+          }
+        }
+
+        if (overlapsOther) {
+          card.style.left = lastLeft + "px";
+          card.style.top = lastTop + "px";
+        }
+
+        // Evaluate placement vs left/right
+        const areaWidth = areaRectNow.width;
+        const cardRectDom = card.getBoundingClientRect();
+        const centerX = ((cardRectDom.left + cardRectDom.right) / 2) - areaRectNow.left;
+        const midX = areaWidth / 2;
+
+        const side = centerX < midX ? "left" : "right"; // left = Feinde, right = Freunde
+        const expected = card.dataset.type;
 
         let feedbackType;
         if (side === "left" && expected === "feind") {
@@ -309,7 +349,7 @@
     });
 
     function initGame() {
-      // Clear old cards if any
+      // Clear old cards
       gameArea.querySelectorAll(".card").forEach(el => el.remove());
       feedbackOverlay.style.display = "none";
 
@@ -319,7 +359,7 @@
         height: areaRectAbs.height
       };
 
-      // Forest frame defined via percentages: left 25%, right 75%, top 15%, bottom 85%
+      // Forest area defined in percentages (must match CSS)
       const forestRectLocal = {
         left: areaRectLocal.width * 0.25,
         right: areaRectLocal.width * 0.75,
@@ -327,9 +367,13 @@
         bottom: areaRectLocal.height * 0.85
       };
 
+      const existingRects = [];
       const shuffled = shuffle([...cardsData]);
+
       shuffled.forEach(cardData => {
-        const card = createCard(cardData, areaRectLocal, forestRectLocal);
+        const pos = findSpawnPosition(areaRectLocal, forestRectLocal, existingRects);
+        existingRects.push(pos);
+        const card = createCard(cardData, pos);
         gameArea.appendChild(card);
       });
     }
