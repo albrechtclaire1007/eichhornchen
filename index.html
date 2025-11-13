@@ -9,59 +9,46 @@
 
     body {
       margin: 0;
-      background: white;
-      font-family: sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      background: #ffffff;
+      font-family: system-ui, sans-serif;
       min-height: 100vh;
     }
 
-    .game-shell {
-      width: 100%;
-      max-width: 1100px;
-      aspect-ratio: 16/9;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-      overflow: hidden;
+    /* Main layout: forest on top, animals area at bottom */
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
       position: relative;
+      overflow: hidden;
     }
 
-    /* TOP FOREST AREA */
     .forest-area {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 65%;           /* a bit more space for forest */
+      flex: 1 1 auto;
       display: flex;
       justify-content: center;
       align-items: center;
-      pointer-events: none;
+      padding: 10px;
     }
 
     .forest-area img {
-      width: 90%;
-      height: 100%;
+      width: 95%;
+      max-height: 100%;
       object-fit: cover;
       border-radius: 10px;
+      display: block;
     }
 
-    /* BOTTOM ANIMAL BAR */
-    .bottom-row {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 35%;
+    .animals-area {
+      flex: 0 0 auto;
+      padding: 10px;
       display: flex;
-      flex-wrap: wrap;        /* ensures all fit without overlap */
+      flex-wrap: wrap;
       justify-content: center;
       align-items: center;
       gap: 10px;
-      padding: 8px;
-      background: white;
+      position: relative;
+      z-index: 1;
     }
 
     .card {
@@ -70,7 +57,6 @@
       cursor: grab;
       user-select: none;
       touch-action: none;
-      flex-shrink: 0;
     }
 
     .card img {
@@ -83,11 +69,12 @@
     .card.dragging {
       transform: scale(1.1);
       z-index: 999;
+      cursor: grabbing;
     }
 
-    /* Popup */
+    /* Center feedback badge */
     .feedback-overlay {
-      position: absolute;
+      position: fixed;
       inset: 0;
       display: none;
       justify-content: center;
@@ -98,151 +85,185 @@
     .feedback-overlay img {
       width: 30%;
       max-width: 220px;
-      cursor: pointer;
+      height: auto;
       pointer-events: auto;
+      cursor: pointer;
       user-select: none;
     }
   </style>
 </head>
 <body>
+  <div class="page" id="page-root">
+    <div class="forest-area">
+      <img src="https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png" alt="">
+    </div>
 
-<div class="game-shell" id="game-shell">
+    <div class="animals-area" id="animals-area">
+      <!-- Cards injected by JS -->
+    </div>
 
-  <!-- TOP FOREST -->
-  <div class="forest-area">
-    <img src="https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png" alt="">
+    <div class="feedback-overlay" id="feedback">
+      <img id="feedback-img" alt="">
+    </div>
   </div>
 
-  <!-- FEEDBACK CENTER -->
-  <div class="feedback-overlay" id="feedback">
-    <img id="feedback-img" alt="">
-  </div>
+  <script>
+    const CARD_SIZE = 120;
 
-  <!-- ANIMALS BOTTOM -->
-  <div class="bottom-row" id="bottom-row"></div>
+    // 1–8 = Freunde, 9–15 = Feinde
+    const cardsData = [
+      { id: 1, type: "freund", src: "https://i.postimg.cc/LY4JvcjD/1.png" },
+      { id: 2, type: "freund", src: "https://i.postimg.cc/vg84XJ5N/2.png" },
+      { id: 3, type: "freund", src: "https://i.postimg.cc/DJfS59qK/3.png" },
+      { id: 4, type: "freund", src: "https://i.postimg.cc/Q9NFS2ps/4.png" },
+      { id: 5, type: "freund", src: "https://i.postimg.cc/YG2v8517/5.png" },
+      { id: 6, type: "freund", src: "https://i.postimg.cc/mzZPVvQL/6.png" },
+      { id: 7, type: "freund", src: "https://i.postimg.cc/cg1vTpQH/7.png" },
+      { id: 8, type: "freund", src: "https://i.postimg.cc/dkWLf5BF/8.png" },
 
-</div>
+      { id: 9,  type: "feind",  src: "https://i.postimg.cc/R6PNYgR4/9.png" },
+      { id: 10, type: "feind",  src: "https://i.postimg.cc/TLkpst9Y/10.png" },
+      { id: 11, type: "feind",  src: "https://i.postimg.cc/gXMn7gDz/11.png" },
+      { id: 12, type: "feind",  src: "https://i.postimg.cc/XG2pPs8v/12.png" },
+      { id: 13, type: "feind",  src: "https://i.postimg.cc/ZBfCQwcR/13.png" },
+      { id: 14, type: "feind",  src: "https://i.postimg.cc/dkWLf5BL/14.png" },
+      { id: 15, type: "feind",  src: "https://i.postimg.cc/JDTGFpqy/15.png" }
+    ];
 
-<script>
-const CARD_SIZE = 120;
+    const pageRoot   = document.getElementById("page-root");
+    const animalsDom = document.getElementById("animals-area");
+    const feedback   = document.getElementById("feedback");
+    const feedbackImg = document.getElementById("feedback-img");
 
-const cardsData = [
-  { id: 1, type: "freund", src: "https://i.postimg.cc/LY4JvcjD/1.png" },
-  { id: 2, type: "freund", src: "https://i.postimg.cc/vg84XJ5N/2.png" },
-  { id: 3, type: "freund", src: "https://i.postimg.cc/DJfS59qK/3.png" },
-  { id: 4, type: "freund", src: "https://i.postimg.cc/Q9NFS2ps/4.png" },
-  { id: 5, type: "freund", src: "https://i.postimg.cc/YG2v8517/5.png" },
-  { id: 6, type: "freund", src: "https://i.postimg.cc/mzZPVvQL/6.png" },
-  { id: 7, type: "freund", src: "https://i.postimg.cc/cg1vTpQH/7.png" },
-  { id: 8, type: "freund", src: "https://i.postimg.cc/dkWLf5BF/8.png" },
+    const FEEDBACK_IMAGES = {
+      falsch:  "https://i.postimg.cc/zLsKJzHC/falsch.png",
+      feind:   "https://i.postimg.cc/p9wz2W5Y/feinde.png",
+      freund:  "https://i.postimg.cc/B8rHqSP5/freunde.png"
+    };
 
-  { id: 9, type: "feind", src: "https://i.postimg.cc/R6PNYgR4/9.png" },
-  { id: 10, type: "feind", src: "https://i.postimg.cc/TLkpst9Y/10.png" },
-  { id: 11, type: "feind", src: "https://i.postimg.cc/gXMn7gDz/11.png" },
-  { id: 12, type: "feind", src: "https://i.postimg.cc/XG2pPs8v/12.png" },
-  { id: 13, type: "feind", src: "https://i.postimg.cc/ZBfCQwcR/13.png" },
-  { id: 14, type: "feind", src: "https://i.postimg.cc/dkWLf5BL/14.png" },
-  { id: 15, type: "feind", src: "https://i.postimg.cc/JDTGFpqy/15.png" }
-];
+    const originalPositions = new Map(); // card -> {left, top}
+    let layoutComputed = false;
 
-const bottomRow = document.getElementById("bottom-row");
-const gameShell = document.getElementById("game-shell");
-const feedback = document.getElementById("feedback");
-const feedbackImg = document.getElementById("feedback-img");
+    // Create cards in the bottom animals-area
+    function initCards() {
+      cardsData.forEach(cardData => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.type = cardData.type;
+        card.dataset.id   = cardData.id;
 
-const FEEDBACK = {
-  falsch: "https://i.postimg.cc/zLsKJzHC/falsch.png",
-  feind: "https://i.postimg.cc/p9wz2W5Y/feinde.png",
-  freund: "https://i.postimg.cc/B8rHqSP5/freunde.png"
-};
+        const img = document.createElement("img");
+        img.src = cardData.src;
+        img.alt = "";
+        card.appendChild(img);
 
-/* Populate bottom row */
-cardsData.forEach(card => {
-  const el = document.createElement("div");
-  el.className = "card";
-  el.dataset.type = card.type;
+        animalsDom.appendChild(card);
+        makeDraggable(card);
+      });
 
-  const img = document.createElement("img");
-  img.src = card.src;
-  el.appendChild(img);
+      // After layout, record original positions
+      requestAnimationFrame(recordOriginalPositions);
+    }
 
-  bottomRow.appendChild(el);
-  makeDraggable(el);
-});
+    function recordOriginalPositions() {
+      const pageRect = pageRoot.getBoundingClientRect();
+      const cards = document.querySelectorAll(".card");
 
-/* Drag logic */
-function makeDraggable(card) {
-  let offsetX, offsetY, startLeft, startTop;
+      cards.forEach(card => {
+        const rect = card.getBoundingClientRect();
+        const left = rect.left - pageRect.left + window.scrollX;
+        const top  = rect.top  - pageRect.top  + window.scrollY;
 
-  card.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
+        originalPositions.set(card, { left, top });
 
-    const shellRect = gameShell.getBoundingClientRect();
-    const rect = card.getBoundingClientRect();
+        // Ensure they are absolutely positioned at these coords
+        card.style.position = "absolute";
+        card.style.left = left + "px";
+        card.style.top  = top  + "px";
+      });
 
-    offsetX = e.clientX - rect.left;
-    offsetY = e.clientY - rect.top;
+      layoutComputed = true;
+    }
 
-    // Convert current position to absolute within game-shell
-    startLeft = rect.left - shellRect.left;
-    startTop  = rect.top - shellRect.top;
+    function makeDraggable(card) {
+      let offsetX = 0;
+      let offsetY = 0;
 
-    card.style.position = "absolute";
-    card.style.left = startLeft + "px";
-    card.style.top  = startTop + "px";
+      card.addEventListener("pointerdown", (e) => {
+        if (!layoutComputed) return; // safety
 
-    card.classList.add("dragging");
-    card.setPointerCapture(e.pointerId);
-  });
+        e.preventDefault();
+        const pageRect = pageRoot.getBoundingClientRect();
+        const rect = card.getBoundingClientRect();
 
-  card.addEventListener("pointermove", (e) => {
-    if (!card.classList.contains("dragging")) return;
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
 
-    const shellRect = gameShell.getBoundingClientRect();
-    let x = e.clientX - shellRect.left - offsetX;
-    let y = e.clientY - shellRect.top - offsetY;
+        card.classList.add("dragging");
+        card.setPointerCapture(e.pointerId);
+      });
 
-    // keep inside board
-    x = Math.max(0, Math.min(shellRect.width - CARD_SIZE, x));
-    y = Math.max(0, Math.min(shellRect.height - CARD_SIZE, y));
+      card.addEventListener("pointermove", (e) => {
+        if (!card.classList.contains("dragging")) return;
 
-    card.style.left = x + "px";
-    card.style.top  = y + "px";
-  });
+        const pageRect = pageRoot.getBoundingClientRect();
+        let newLeft = e.clientX - pageRect.left - offsetX + window.scrollX;
+        let newTop  = e.clientY - pageRect.top  - offsetY + window.scrollY;
 
-  card.addEventListener("pointerup", (e) => {
-    if (!card.classList.contains("dragging")) return;
+        // constrain inside visible area of pageRoot
+        const maxLeft = pageRect.width - CARD_SIZE;
+        const maxTop  = pageRect.height - CARD_SIZE;
+        newLeft = Math.max(0, Math.min(maxLeft, newLeft));
+        newTop  = Math.max(0, Math.min(maxTop, newTop));
 
-    card.classList.remove("dragging");
-    card.releasePointerCapture(e.pointerId);
+        card.style.left = newLeft + "px";
+        card.style.top  = newTop  + "px";
+      });
 
-    const shellRect = gameShell.getBoundingClientRect();
-    const rect = card.getBoundingClientRect();
-    const centerX = (rect.left + rect.right) / 2 - shellRect.left;
+      card.addEventListener("pointerup", (e) => {
+        if (!card.classList.contains("dragging")) return;
 
-    const type = card.dataset.type;
-    const mid = shellRect.width / 2;
+        card.classList.remove("dragging");
+        card.releasePointerCapture(e.pointerId);
 
-    let result;
-    if (centerX < mid && type === "feind") result = "feind";
-    else if (centerX > mid && type === "freund") result = "freund";
-    else result = "falsch";
+        const pageRect = pageRoot.getBoundingClientRect();
+        const rect = card.getBoundingClientRect();
 
-    showPopup(result);
-  });
-}
+        const centerX = (rect.left + rect.right) / 2 - pageRect.left;
+        const midX = pageRect.width / 2;
 
-/* Popup */
-function showPopup(type) {
-  feedbackImg.src = FEEDBACK[type];
-  feedback.style.display = "flex";
-}
+        const type = card.dataset.type; // "freund" or "feind"
 
-feedbackImg.addEventListener("click", () => {
-  feedback.style.display = "none";
-});
-</script>
+        let feedbackType;
+        if (centerX < midX && type === "feind") {
+          feedbackType = "feind";
+        } else if (centerX >= midX && type === "freund") {
+          feedbackType = "freund";
+        } else {
+          feedbackType = "falsch";
+          // Snap back to original bottom position
+          const orig = originalPositions.get(card);
+          if (orig) {
+            card.style.left = orig.left + "px";
+            card.style.top  = orig.top  + "px";
+          }
+        }
 
+        showFeedback(feedbackType);
+      });
+    }
+
+    function showFeedback(type) {
+      feedbackImg.src = FEEDBACK_IMAGES[type];
+      feedback.style.display = "flex";
+    }
+
+    feedbackImg.addEventListener("click", () => {
+      feedback.style.display = "none";
+    });
+
+    window.addEventListener("load", initCards);
+  </script>
 </body>
 </html>
 
