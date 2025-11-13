@@ -37,13 +37,13 @@
       touch-action: none;
     }
 
-    /* Forest image centered */
+    /* Larger forest in the middle */
     .forest-frame {
       position: absolute;
-      top: 15%;
-      bottom: 15%;
-      left: 25%;
-      right: 25%;
+      top: 10%;
+      bottom: 10%;
+      left: 20%;
+      right: 20%;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -58,10 +58,10 @@
       display: block;
     }
 
-    /* Cards = animals (now bigger, no white box) */
+    /* Animals (big, no box) */
     .card {
       position: absolute;
-      width: 180px;   /* 2x previous 90px */
+      width: 180px;   /* big animals */
       height: 180px;
       background: transparent;
       display: flex;
@@ -96,8 +96,8 @@
     }
 
     .feedback-overlay img {
-      width: 30%;          /* was 60% */
-      max-width: 225px;    /* was 450px */
+      width: 30%;          /* half the old size */
+      max-width: 225px;
       height: auto;
       pointer-events: auto;
       cursor: pointer;
@@ -114,7 +114,6 @@
           src="https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png"
           alt=""
         />
-        <!-- SVG border removed to avoid the "?" -->
       </div>
 
       <!-- Centre feedback badge -->
@@ -125,7 +124,7 @@
   </div>
 
   <script>
-    const CARD_SIZE = 180; // 2x bigger
+    const CARD_SIZE = 180;
 
     // 1–8 = Freunde, 9–15 = Feinde
     const cardsData = [
@@ -176,11 +175,20 @@
       );
     }
 
-    // Find a spawn position that doesn't overlap forest or existing cards
+    // Forest rect for spawn rule: avoid putting the CARD CENTRE inside forest
+    function getForestRect(areaWidth, areaHeight) {
+      return {
+        left: areaWidth * 0.20,
+        right: areaWidth * 0.80,
+        top: areaHeight * 0.10,
+        bottom: areaHeight * 0.90
+      };
+    }
+
     function findSpawnPosition(areaRect, forestRect, existingRects) {
       const maxLeft = areaRect.width - CARD_SIZE;
       const maxTop = areaRect.height - CARD_SIZE;
-      const maxAttempts = 500;
+      const maxAttempts = 800;
       const padding = 8;
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -194,10 +202,20 @@
           bottom: top + CARD_SIZE
         };
 
-        // avoid forest
-        if (rectsOverlap(candidate, forestRect, padding)) continue;
+        // centre point of the card
+        const cx = left + CARD_SIZE / 2;
+        const cy = top + CARD_SIZE / 2;
 
-        // avoid other cards
+        // centre must not be inside forest rect (so they are "around" it)
+        const inForest =
+          cx > forestRect.left &&
+          cx < forestRect.right &&
+          cy > forestRect.top &&
+          cy < forestRect.bottom;
+
+        if (inForest) continue;
+
+        // avoid existing cards
         let collides = false;
         for (const r of existingRects) {
           if (rectsOverlap(candidate, r, padding)) {
@@ -210,7 +228,7 @@
         return candidate;
       }
 
-      // Fallback – if we fail, just put it somewhere (unlikely to happen)
+      // Very unlikely fallback
       return {
         left: 0,
         top: 0,
@@ -233,7 +251,6 @@
       card.style.left = position.left + "px";
       card.style.top = position.top + "px";
 
-      // Remember last non-overlapping position
       let lastLeft = position.left;
       let lastTop = position.top;
 
@@ -282,6 +299,7 @@
         card.releasePointerCapture(e.pointerId);
 
         const areaRectNow = gameArea.getBoundingClientRect();
+
         const thisRect = {
           left: parseFloat(card.style.left) || 0,
           top: parseFloat(card.style.top) || 0,
@@ -289,7 +307,7 @@
           bottom: (parseFloat(card.style.top) || 0) + CARD_SIZE
         };
 
-        // Check overlap with other cards; if overlapping, snap back
+        // Check overlap with other cards – if overlapping, snap back
         const allCards = Array.from(document.querySelectorAll(".card"));
         let overlapsOther = false;
         for (const other of allCards) {
@@ -311,13 +329,16 @@
         if (overlapsOther) {
           card.style.left = lastLeft + "px";
           card.style.top = lastTop + "px";
+        } else {
+          lastLeft = parseFloat(card.style.left) || lastLeft;
+          lastTop = parseFloat(card.style.top) || lastTop;
         }
 
-        // Evaluate placement vs left/right
-        const areaWidth = areaRectNow.width;
+        // Evaluate placement left/right
         const cardRectDom = card.getBoundingClientRect();
-        const centerX = ((cardRectDom.left + cardRectDom.right) / 2) - areaRectNow.left;
-        const midX = areaWidth / 2;
+        const centerX =
+          (cardRectDom.left + cardRectDom.right) / 2 - areaRectNow.left;
+        const midX = areaRectNow.width / 2;
 
         const side = centerX < midX ? "left" : "right"; // left = Feinde, right = Freunde
         const expected = card.dataset.type;
@@ -350,28 +371,24 @@
 
     function initGame() {
       // Clear old cards
-      gameArea.querySelectorAll(".card").forEach(el => el.remove());
+      gameArea.querySelectorAll(".card").forEach((el) => el.remove());
       feedbackOverlay.style.display = "none";
 
-      const areaRectAbs = gameArea.getBoundingClientRect();
-      const areaRectLocal = {
-        width: areaRectAbs.width,
-        height: areaRectAbs.height
-      };
+      const areaWidth = gameArea.clientWidth;
+      const areaHeight = gameArea.clientHeight;
 
-      // Forest area defined in percentages (must match CSS)
-      const forestRectLocal = {
-        left: areaRectLocal.width * 0.25,
-        right: areaRectLocal.width * 0.75,
-        top: areaRectLocal.height * 0.15,
-        bottom: areaRectLocal.height * 0.85
-      };
+      const areaRectLocal = { width: areaWidth, height: areaHeight };
+      const forestRectLocal = getForestRect(areaWidth, areaHeight);
 
       const existingRects = [];
       const shuffled = shuffle([...cardsData]);
 
-      shuffled.forEach(cardData => {
-        const pos = findSpawnPosition(areaRectLocal, forestRectLocal, existingRects);
+      shuffled.forEach((cardData) => {
+        const pos = findSpawnPosition(
+          areaRectLocal,
+          forestRectLocal,
+          existingRects
+        );
         existingRects.push(pos);
         const card = createCard(cardData, pos);
         gameArea.appendChild(card);
