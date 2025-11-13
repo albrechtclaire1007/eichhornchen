@@ -28,12 +28,13 @@
       position: relative;
     }
 
+    /* TOP FOREST AREA */
     .forest-area {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
-      height: 70%;
+      height: 65%;           /* a bit more space for forest */
       display: flex;
       justify-content: center;
       align-items: center;
@@ -47,26 +48,25 @@
       border-radius: 10px;
     }
 
-    /* ANIMALS ROW AT BOTTOM */
+    /* BOTTOM ANIMAL BAR */
     .bottom-row {
       position: absolute;
       bottom: 0;
       left: 0;
       width: 100%;
-      height: 30%;
+      height: 35%;
       display: flex;
+      flex-wrap: wrap;        /* ensures all fit without overlap */
       justify-content: center;
       align-items: center;
-      gap: 25px;
-      padding: 10px;
-      overflow: hidden;
+      gap: 10px;
+      padding: 8px;
       background: white;
     }
 
     .card {
-      width: 180px;
-      height: 180px;
-      position: relative;
+      width: 120px;
+      height: 120px;
       cursor: grab;
       user-select: none;
       touch-action: none;
@@ -80,10 +80,9 @@
       pointer-events: none;
     }
 
-    .dragging {
-      position: absolute;
-      z-index: 999;
+    .card.dragging {
       transform: scale(1.1);
+      z-index: 999;
     }
 
     /* Popup */
@@ -101,30 +100,31 @@
       max-width: 220px;
       cursor: pointer;
       pointer-events: auto;
+      user-select: none;
     }
   </style>
 </head>
 <body>
 
-<div class="game-shell">
+<div class="game-shell" id="game-shell">
 
   <!-- TOP FOREST -->
   <div class="forest-area">
-    <img src="https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png" />
+    <img src="https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png" alt="">
   </div>
 
   <!-- FEEDBACK CENTER -->
   <div class="feedback-overlay" id="feedback">
-    <img id="feedback-img" />
+    <img id="feedback-img" alt="">
   </div>
 
-  <!-- ANIMALS ROW -->
+  <!-- ANIMALS BOTTOM -->
   <div class="bottom-row" id="bottom-row"></div>
 
 </div>
 
 <script>
-const CARD_SIZE = 180;
+const CARD_SIZE = 120;
 
 const cardsData = [
   { id: 1, type: "freund", src: "https://i.postimg.cc/LY4JvcjD/1.png" },
@@ -146,6 +146,7 @@ const cardsData = [
 ];
 
 const bottomRow = document.getElementById("bottom-row");
+const gameShell = document.getElementById("game-shell");
 const feedback = document.getElementById("feedback");
 const feedbackImg = document.getElementById("feedback-img");
 
@@ -155,7 +156,7 @@ const FEEDBACK = {
   freund: "https://i.postimg.cc/B8rHqSP5/freunde.png"
 };
 
-/* --- Populate bottom row --- */
+/* Populate bottom row */
 cardsData.forEach(card => {
   const el = document.createElement("div");
   el.className = "card";
@@ -166,54 +167,61 @@ cardsData.forEach(card => {
   el.appendChild(img);
 
   bottomRow.appendChild(el);
-
   makeDraggable(el);
 });
 
-/* --- Drag logic --- */
+/* Drag logic */
 function makeDraggable(card) {
   let offsetX, offsetY, startLeft, startTop;
 
   card.addEventListener("pointerdown", (e) => {
-    card.classList.add("dragging");
+    e.preventDefault();
 
+    const shellRect = gameShell.getBoundingClientRect();
     const rect = card.getBoundingClientRect();
-    const parentRect = document.querySelector(".game-shell").getBoundingClientRect();
 
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
 
-    startLeft = rect.left - parentRect.left;
-    startTop = rect.top - parentRect.top;
+    // Convert current position to absolute within game-shell
+    startLeft = rect.left - shellRect.left;
+    startTop  = rect.top - shellRect.top;
 
+    card.style.position = "absolute";
+    card.style.left = startLeft + "px";
+    card.style.top  = startTop + "px";
+
+    card.classList.add("dragging");
     card.setPointerCapture(e.pointerId);
   });
 
   card.addEventListener("pointermove", (e) => {
     if (!card.classList.contains("dragging")) return;
 
-    const parentRect = document.querySelector(".game-shell").getBoundingClientRect();
-    let x = e.clientX - parentRect.left - offsetX;
-    let y = e.clientY - parentRect.top - offsetY;
+    const shellRect = gameShell.getBoundingClientRect();
+    let x = e.clientX - shellRect.left - offsetX;
+    let y = e.clientY - shellRect.top - offsetY;
 
-    /* keep inside board */
-    x = Math.max(0, Math.min(parentRect.width - CARD_SIZE, x));
-    y = Math.max(0, Math.min(parentRect.height - CARD_SIZE, y));
+    // keep inside board
+    x = Math.max(0, Math.min(shellRect.width - CARD_SIZE, x));
+    y = Math.max(0, Math.min(shellRect.height - CARD_SIZE, y));
 
     card.style.left = x + "px";
-    card.style.top = y + "px";
-    card.style.position = "absolute";
+    card.style.top  = y + "px";
   });
 
   card.addEventListener("pointerup", (e) => {
-    card.classList.remove("dragging");
+    if (!card.classList.contains("dragging")) return;
 
-    const parentRect = document.querySelector(".game-shell").getBoundingClientRect();
+    card.classList.remove("dragging");
+    card.releasePointerCapture(e.pointerId);
+
+    const shellRect = gameShell.getBoundingClientRect();
     const rect = card.getBoundingClientRect();
-    const centerX = (rect.left + rect.right) / 2 - parentRect.left;
+    const centerX = (rect.left + rect.right) / 2 - shellRect.left;
 
     const type = card.dataset.type;
-    const mid = parentRect.width / 2;
+    const mid = shellRect.width / 2;
 
     let result;
     if (centerX < mid && type === "feind") result = "feind";
@@ -224,7 +232,7 @@ function makeDraggable(card) {
   });
 }
 
-/* --- Popup --- */
+/* Popup */
 function showPopup(type) {
   feedbackImg.src = FEEDBACK[type];
   feedback.style.display = "flex";
@@ -237,3 +245,4 @@ feedbackImg.addEventListener("click", () => {
 
 </body>
 </html>
+
