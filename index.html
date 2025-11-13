@@ -40,10 +40,10 @@
     /* Forest in the middle */
     .forest-frame {
       position: absolute;
-      top: 10%;
-      bottom: 10%;
-      left: 20%;
-      right: 20%;
+      top: 15%;
+      bottom: 15%;
+      left: 25%;
+      right: 25%;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -58,7 +58,7 @@
       display: block;
     }
 
-    /* Your red-border SVG overlay (on top of the forest) */
+    /* Your red border SVG overlay (change src to your own file name) */
     .border-svg {
       position: absolute;
       inset: 0;
@@ -71,10 +71,10 @@
     /* Cards = animals */
     .card {
       position: absolute;
-      width: 90px;   /* 150% of earlier 60px */
+      width: 90px;   /* 150% of 60px */
       height: 90px;
       border-radius: 16px;
-      background: transparent; /* keep PNG fully transparent */
+      background: transparent; /* PNG stays transparent */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -105,6 +105,7 @@
       align-items: center;
       justify-content: center;
       pointer-events: none; /* click-through except on img */
+      background: rgba(0,0,0,0.0); /* no dark overlay */
     }
 
     .feedback-overlay img {
@@ -120,23 +121,21 @@
 <body>
   <div class="game-shell">
     <div class="game-area" id="game-area">
-      <div class="forest-frame" id="forest-frame">
+      <div class="forest-frame">
         <!-- Forest scene in the middle -->
         <img
           class="forest-img"
           src="https://i.postimg.cc/s2V0k6gc/Freunde-und-Feinde-Eichhornchen.png"
           alt=""
         />
-        <!-- Red border SVG overlay; put your SVG file next to this HTML and update the src if needed -->
-        <img class="border-svg" src="3.svg" alt="" />
+        <!-- Red border SVG overlay (replace "red-border.svg" with your actual file name) -->
+        <img class="border-svg" src="red-border.svg" alt="" />
       </div>
 
       <!-- Big feedback badge centre-screen -->
       <div class="feedback-overlay" id="feedback-overlay">
         <img id="feedback-img" alt="" />
       </div>
-
-      <!-- Cards & logic injected via JS -->
     </div>
   </div>
 
@@ -146,5 +145,196 @@
     // Card data: 1–8 = Freunde, 9–15 = Feinde
     const cardsData = [
       { id: 1, type: "freund", src: "https://i.postimg.cc/LY4JvcjD/1.png" },
-      { id: 2, type: "freund",
+      { id: 2, type: "freund", src: "https://i.postimg.cc/vg84XJ5N/2.png" },
+      { id: 3, type: "freund", src: "https://i.postimg.cc/DJfS59qK/3.png" },
+      { id: 4, type: "freund", src: "https://i.postimg.cc/Q9NFS2ps/4.png" },
+      { id: 5, type: "freund", src: "https://i.postimg.cc/YG2v8517/5.png" },
+      { id: 6, type: "freund", src: "https://i.postimg.cc/mzZPVvQL/6.png" },
+      { id: 7, type: "freund", src: "https://i.postimg.cc/cg1vTpQH/7.png" },
+      { id: 8, type: "freund", src: "https://i.postimg.cc/dkWLf5BF/8.png" },
 
+      { id: 9, type: "feind", src: "https://i.postimg.cc/R6PNYgR4/9.png" },
+      { id: 10, type: "feind", src: "https://i.postimg.cc/TLkpst9Y/10.png" },
+      { id: 11, type: "feind", src: "https://i.postimg.cc/gXMn7gDz/11.png" },
+      { id: 12, type: "feind", src: "https://i.postimg.cc/XG2pPs8v/12.png" },
+      { id: 13, type: "feind", src: "https://i.postimg.cc/ZBfCQwcR/13.png" },
+      { id: 14, type: "feind", src: "https://i.postimg.cc/dkWLf5BL/14.png" },
+      { id: 15, type: "feind", src: "https://i.postimg.cc/JDTGFpqy/15.png" }
+    ];
+
+    const gameArea = document.getElementById("game-area");
+    const feedbackOverlay = document.getElementById("feedback-overlay");
+    const feedbackImg = document.getElementById("feedback-img");
+
+    const FEEDBACK_IMAGES = {
+      falsch: "https://i.postimg.cc/zLsKJzHC/falsch.png",
+      feind: "https://i.postimg.cc/p9wz2W5Y/feinde.png",
+      freund: "https://i.postimg.cc/B8rHqSP5/freunde.png"
+    };
+
+    let currentDrag = null;
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // Simple helper to avoid placing cards over the forest area
+    function rectsOverlap(a, b, padding = 0) {
+      return !(
+        a.right < b.left + padding ||
+        a.left > b.right - padding ||
+        a.bottom < b.top + padding ||
+        a.top > b.bottom - padding
+      );
+    }
+
+    function createCard(cardData, areaRect, forestRect) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.dataset.id = cardData.id;
+      card.dataset.type = cardData.type;
+
+      const img = document.createElement("img");
+      img.src = cardData.src;
+      img.alt = "";
+      card.appendChild(img);
+
+      // Place randomly in white area (not overlapping forestRect)
+      const maxLeft = areaRect.width - CARD_SIZE;
+      const maxTop = areaRect.height - CARD_SIZE;
+
+      let left, top;
+      const maxAttempts = 300;
+      let attempts = 0;
+
+      do {
+        left = Math.random() * maxLeft;
+        top = Math.random() * maxTop;
+
+        const cardRectLocal = {
+          left,
+          top,
+          right: left + CARD_SIZE,
+          bottom: top + CARD_SIZE
+        };
+
+        if (!rectsOverlap(cardRectLocal, forestRect, 10)) {
+          break;
+        }
+        attempts++;
+      } while (attempts < maxAttempts);
+
+      card.style.left = left + "px";
+      card.style.top = top + "px";
+
+      // Drag logic
+      card.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        const rect = card.getBoundingClientRect();
+        const areaRectNow = gameArea.getBoundingClientRect();
+
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+
+        currentDrag = {
+          card,
+          offsetX,
+          offsetY
+        };
+
+        card.classList.add("dragging");
+        card.setPointerCapture(e.pointerId);
+      });
+
+      card.addEventListener("pointermove", (e) => {
+        if (!currentDrag || currentDrag.card !== card) return;
+
+        const areaRectNow = gameArea.getBoundingClientRect();
+        let newLeft = e.clientX - areaRectNow.left - currentDrag.offsetX;
+        let newTop = e.clientY - areaRectNow.top - currentDrag.offsetY;
+
+        const maxLeft = areaRectNow.width - card.offsetWidth;
+        const maxTop = areaRectNow.height - card.offsetHeight;
+
+        newLeft = Math.max(0, Math.min(maxLeft, newLeft));
+        newTop = Math.max(0, Math.min(maxTop, newTop));
+
+        card.style.left = newLeft + "px";
+        card.style.top = newTop + "px";
+      });
+
+      card.addEventListener("pointerup", (e) => {
+        if (!currentDrag || currentDrag.card !== card) return;
+
+        card.classList.remove("dragging");
+        card.releasePointerCapture(e.pointerId);
+
+        // Check placement: left half = Feinde, right half = Freunde
+        const areaRectNow = gameArea.getBoundingClientRect();
+        const cardRect = card.getBoundingClientRect();
+        const centerX = (cardRect.left + cardRect.right) / 2 - areaRectNow.left;
+        const midX = areaRectNow.width / 2;
+
+        const side = centerX < midX ? "left" : "right";
+        const expected = card.dataset.type; // "freund" or "feind"
+
+        let feedbackType;
+        if (side === "left" && expected === "feind") {
+          feedbackType = "feind";
+        } else if (side === "right" && expected === "freund") {
+          feedbackType = "freund";
+        } else {
+          feedbackType = "falsch";
+        }
+
+        showFeedback(feedbackType);
+
+        currentDrag = null;
+      });
+
+      return card;
+    }
+
+    function showFeedback(type) {
+      feedbackImg.src = FEEDBACK_IMAGES[type];
+      feedbackOverlay.style.display = "flex";
+    }
+
+    feedbackImg.addEventListener("click", () => {
+      feedbackOverlay.style.display = "none";
+    });
+
+    function initGame() {
+      // Clear old cards if any
+      gameArea.querySelectorAll(".card").forEach(el => el.remove());
+      feedbackOverlay.style.display = "none";
+
+      const areaRectAbs = gameArea.getBoundingClientRect();
+      const areaRectLocal = {
+        width: areaRectAbs.width,
+        height: areaRectAbs.height
+      };
+
+      // Forest frame defined via percentages: left 25%, right 75%, top 15%, bottom 85%
+      const forestRectLocal = {
+        left: areaRectLocal.width * 0.25,
+        right: areaRectLocal.width * 0.75,
+        top: areaRectLocal.height * 0.15,
+        bottom: areaRectLocal.height * 0.85
+      };
+
+      const shuffled = shuffle([...cardsData]);
+      shuffled.forEach(cardData => {
+        const card = createCard(cardData, areaRectLocal, forestRectLocal);
+        gameArea.appendChild(card);
+      });
+    }
+
+    window.addEventListener("load", initGame);
+  </script>
+</body>
+</html>
