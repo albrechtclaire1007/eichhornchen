@@ -13,17 +13,18 @@
       font-family: system-ui, sans-serif;
     }
 
-    /* Whole page: forest on top, animals at bottom */
+    /* Page can be taller than viewport and scroll */
     .page {
-      height: 100vh;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       position: relative;
-      overflow: hidden;
     }
 
     .forest-area {
-      flex: 0 0 60%;          /* smaller than before */
+      flex: 0 0 auto;
+      height: 60vh;              /* main image a bit smaller than full height */
+      max-height: 500px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -38,9 +39,10 @@
       display: block;
     }
 
+    /* Animals block sits under forest; page can scroll to show all of it */
     .animals-area {
-      flex: 0 0 40%;
-      padding: 10px;
+      flex: 0 0 auto;
+      padding: 10px 10px 30px;
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
@@ -139,12 +141,10 @@
       freund: "https://i.postimg.cc/B8rHqSP5/freunde.png"
     };
 
-    // Remember original bottom positions
     const originalPositions = new Map(); // card -> {left, top}
-    const anchored = new Set();         // cards already converted to absolute
+    const anchored = new Set();
 
     function init() {
-      // create cards in bottom area
       cardsData.forEach(data => {
         const card = document.createElement("div");
         card.className = "card";
@@ -160,7 +160,7 @@
         makeDraggable(card);
       });
 
-      // after layout, we know their positions
+      // after layout, store start positions
       requestAnimationFrame(recordInitialPositions);
     }
 
@@ -170,8 +170,8 @@
 
       cards.forEach(card => {
         const rect = card.getBoundingClientRect();
-        const left = rect.left - pageRect.left;
-        const top  = rect.top  - pageRect.top;
+        const left = rect.left - pageRect.left + window.scrollX;
+        const top  = rect.top  - pageRect.top  + window.scrollY;
 
         originalPositions.set(card, { left, top });
       });
@@ -186,10 +186,10 @@
         const pageRect = pageRoot.getBoundingClientRect();
         const rect = card.getBoundingClientRect();
 
-        // first time: make absolute at its current bottom position
+        // first time we drag: fix it in place, relative to pageRoot
         if (!anchored.has(card)) {
-          const left = rect.left - pageRect.left;
-          const top  = rect.top  - pageRect.top;
+          const left = rect.left - pageRect.left + window.scrollX;
+          const top  = rect.top  - pageRect.top  + window.scrollY;
           originalPositions.set(card, { left, top });
 
           card.style.position = "absolute";
@@ -212,12 +212,12 @@
         if (!card.classList.contains("dragging")) return;
 
         const pageRect = pageRoot.getBoundingClientRect();
-        let newLeft = e.clientX - pageRect.left - offsetX;
-        let newTop  = e.clientY - pageRect.top  - offsetY;
+        let newLeft = e.clientX - pageRect.left - offsetX + window.scrollX;
+        let newTop  = e.clientY - pageRect.top  - offsetY + window.scrollY;
 
-        // keep fully inside pageRoot
         const maxLeft = pageRect.width  - CARD_SIZE;
         const maxTop  = pageRect.height - CARD_SIZE;
+
         newLeft = Math.max(0, Math.min(maxLeft, newLeft));
         newTop  = Math.max(0, Math.min(maxTop,  newTop));
 
@@ -245,7 +245,6 @@
           feedbackType = "freund";
         } else {
           feedbackType = "falsch";
-          // snap back to original bottom position
           const orig = originalPositions.get(card);
           if (orig) {
             card.style.left = orig.left + "px";
